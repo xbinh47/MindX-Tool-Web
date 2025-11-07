@@ -84,6 +84,7 @@ export default function Home() {
     deadline: false,
     next_requirement: false,
   })
+  const [greeting, setGreeting] = useState<string>("Chào cả lớp, Thầy gửi nội dung buổi học vừa qua")
   const [result, setResult] = useState<string>("")
 
   const sheets = Object.keys(data)
@@ -127,6 +128,23 @@ export default function Home() {
       }
     }
   }, [])
+
+  // Load greeting from localStorage on mount
+  useEffect(() => {
+    if (mounted) {
+      const saved = localStorage.getItem("greeting")
+      if (saved) {
+        setGreeting(saved)
+      }
+    }
+  }, [mounted])
+
+  // Save greeting to localStorage whenever it changes
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem("greeting", greeting)
+    }
+  }, [greeting, mounted])
 
   // Save checkedFields to localStorage whenever it changes
   useEffect(() => {
@@ -187,12 +205,60 @@ export default function Home() {
   }
 
   const generateContent = () => {
-    const output: Record<string, any> = {}
-    if (selectedSheet) {
-      output[selectedSheet] = {}
-      output[selectedSheet][selectedLesson] = formData
+    let content = ""
+    
+    if (!selectedSheet || !selectedLesson) {
+      setResult("Vui lòng chọn Sheet và Bài học trước khi tạo nội dung.")
+      return
     }
-    setResult(JSON.stringify(output, null, 2))
+
+    // Greeting
+    if (greeting.trim()) {
+      content += `${greeting}\n`
+    }
+
+    // Header
+    content += `**📌 Nội dung buổi học số ${lessonNumber}**\n`
+
+    // Nội dung buổi học
+    if (formData.lesson_content.trim()) {
+      content += `${formData.lesson_content}\n`
+    }
+
+    // Student Book
+    if (formData.student_book.trim()) {
+      content += `**📚 Student Book:**\n${formData.student_book}\n`
+    }
+
+    // Link video
+    if (formData.video.trim()) {
+      content += `**🎥 Link video:**\n${formData.video}\n`
+    }
+
+    // Kết quả bài tập về nhà
+    if (formData.homework_result.trim()) {
+      content += `**✅ Kết quả bài tập về nhà:**\n${formData.homework_result}\n`
+    }
+
+    // Yêu cầu cho buổi tiếp theo
+    if (formData.next_requirement.trim()) {
+      content += `**📋 Yêu cầu cho buổi tiếp theo:**\n${formData.next_requirement}\n`
+    }
+
+    // Hạn nộp bài
+    if (formData.deadline.trim()) {
+      content += `**⏰ Hạn nộp bài:**\n${formData.deadline}\n`
+    }
+
+    // Nội dung buổi tới
+    if (formData.next_lesson_content.trim()) {
+      content += `**📖 Nội dung buổi tới:**\n${formData.next_lesson_content}\n`
+    }
+
+    // Tình hình học tập của lớp (nếu có)
+    // Note: This field is currently empty in the form, but we can add it if needed
+
+    setResult(content.trim())
   }
 
   return (
@@ -230,6 +296,21 @@ export default function Home() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
         {/* Left Column - Input Form */}
         <div className="space-y-6">
+          {/* Greeting Editor */}
+          <div className="space-y-2">
+            <Label htmlFor="greeting">Lời chào:</Label>
+            <Input
+              id="greeting"
+              value={greeting}
+              onChange={(e) => setGreeting(e.target.value)}
+              placeholder="Nhập lời chào..."
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              Lời chào sẽ được thêm vào đầu nội dung. Lưu tự động vào localStorage.
+            </p>
+          </div>
+
           {/* Sheet and Lesson Selection */}
           <div className="space-y-4">
             <div className="space-y-2">
@@ -531,14 +612,68 @@ export default function Home() {
         <div className="space-y-4">
           <div className="sticky top-6">
             <div className="space-y-2">
-              <Label className="text-lg font-semibold">Kết quả:</Label>
+              <Label className="text-lg font-semibold">Kết quả (có thể copy với format):</Label>
               {result ? (
-                <Textarea
-                  value={result}
-                  readOnly
-                  rows={30}
-                  className="resize-none font-mono text-sm bg-muted"
-                />
+                <div className="space-y-2">
+                  <div
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={(e) => {
+                      // Convert HTML back to markdown when editing
+                      const html = e.currentTarget.innerHTML
+                      const text = html.replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+                        .replace(/<b>(.*?)<\/b>/g, '**$1**')
+                        .replace(/<br\s*\/?>/g, '\n')
+                        .replace(/&nbsp;/g, ' ')
+                      setResult(text)
+                    }}
+                    className="border rounded-md p-4 text-sm bg-background whitespace-pre-wrap min-h-[400px] focus:outline-none focus:ring-2 focus:ring-ring"
+                    style={{ fontFamily: "'Times New Roman', Times, serif" }}
+                    dangerouslySetInnerHTML={{
+                      __html: result
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\n/g, '<br>')
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const htmlContent = result
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\n/g, '<br>')
+                        const blob = new Blob([htmlContent], { type: 'text/html' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = 'noi-dung-bai-hoc.html'
+                        a.click()
+                        URL.revokeObjectURL(url)
+                      }}
+                    >
+                      Copy HTML
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        const htmlContent = result
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\n/g, '<br>')
+                        await navigator.clipboard.write([
+                          new ClipboardItem({
+                            'text/html': new Blob([htmlContent], { type: 'text/html' }),
+                            'text/plain': new Blob([result], { type: 'text/plain' })
+                          })
+                        ])
+                        alert('Đã copy vào clipboard với format! Paste vào Word hoặc email để thấy chữ in đậm.')
+                      }}
+                    >
+                      Copy với format
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <div className="border rounded-md p-8 text-center text-muted-foreground bg-muted/50 min-h-[400px] flex items-center justify-center">
                   <p>Kết quả sẽ hiển thị ở đây sau khi nhấn "Tạo nội dung"</p>
