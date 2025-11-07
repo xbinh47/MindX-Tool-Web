@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: rgb(255 255 255);
+  --color-foreground: rgb(11 12 13);
+  --color-primary: rgb(34 139 230);
+  --color-primary-foreground: rgb(255 255 255);
+  --color-secondary: rgb(241 245 250);
+  --color-secondary-foreground: rgb(11 12 13);
+  --color-accent: rgb(17 165 121);
+  --color-accent-foreground: rgb(255 255 255);
+  --color-muted: rgb(226 232 240);
+  --color-muted-foreground: rgb(71 85 105);
+  --color-border: rgb(226 232 240);
+  --color-input: rgb(255 255 255);
+  --color-ring: rgb(34 139 230);
+
+  --radius: 0.5rem;
+}
+
+html.dark {
+  --color-background: rgb(15 23 42);
+  --color-foreground: rgb(241 245 250);
+  --color-primary: rgb(34 139 230);
+  --color-primary-foreground: rgb(15 23 42);
+  --color-secondary: rgb(30 41 59);
+  --color-secondary-foreground: rgb(241 245 250);
+  --color-accent: rgb(17 165 121);
+  --color-accent-foreground: rgb(15 23 42);
+  --color-muted: rgb(51 65 85);
+  --color-muted-foreground: rgb(148 163 184);
+  --color-border: rgb(51 65 85);
+  --color-input: rgb(30 41 59);
+  --color-ring: rgb(34 139 230);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
