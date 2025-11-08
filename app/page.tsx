@@ -4,10 +4,11 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { CKEditor } from "@/components/ui/ckeditor"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronUp, ChevronDown, Moon, Sun } from "lucide-react"
+import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 interface LessonData {
@@ -82,12 +83,25 @@ export default function Home() {
     next_requirement: false,
   })
   const [greeting, setGreeting] = useState<string>("Chào cả lớp, Thầy gửi nội dung buổi học vừa qua")
+  const [classSituation, setClassSituation] = useState<string>("")
   const [result, setResult] = useState<string>("")
   const [data, setData] = useState<Record<string, any>>({})
   const [studentBooks, setStudentBooks] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState<boolean>(true)
 
   const sheets = Object.keys(data)
+
+  // Helper function: Lấy danh sách lessons đã sắp xếp theo số thứ tự
+  const getSortedLessons = (sheet: string): string[] => {
+    if (!sheet || !data[sheet]) return []
+    return Object.keys(data[sheet])
+      .filter(key => key.startsWith('lesson_'))
+      .sort((a, b) => {
+        const numA = parseInt(a.replace('lesson_', '')) || 0
+        const numB = parseInt(b.replace('lesson_', '')) || 0
+        return numA - numB
+      })
+  }
 
   // Fetch data from Firestore
   useEffect(() => {
@@ -168,22 +182,48 @@ export default function Home() {
     localStorage.setItem("checkedFields", JSON.stringify(checkedFields))
   }, [checkedFields])
 
-  // Update selectedLesson when sheet or lessonNumber changes
+  // Khi chọn sheet mới, tự động chọn lesson đầu tiên
+  useEffect(() => {
+    if (selectedSheet && data[selectedSheet]) {
+      const sortedLessons = getSortedLessons(selectedSheet)
+      if (sortedLessons.length > 0) {
+        const firstLesson = sortedLessons[0]
+        const num = parseInt(firstLesson.replace('lesson_', '')) || 1
+        setLessonNumber(num)
+        setSelectedLesson(firstLesson)
+      } else {
+        // Nếu không có lesson nào, reset
+        setLessonNumber(1)
+        setSelectedLesson("")
+      }
+    } else if (!selectedSheet) {
+      // Reset khi không chọn sheet
+      setLessonNumber(1)
+      setSelectedLesson("")
+    }
+  }, [selectedSheet, data])
+
+  // Khi lessonNumber thay đổi, cập nhật selectedLesson
   useEffect(() => {
     if (selectedSheet && lessonNumber) {
       const lessonKey = `lesson_${lessonNumber}`
-      setSelectedLesson(lessonKey)
+      const sortedLessons = getSortedLessons(selectedSheet)
+      // Chỉ set nếu lesson tồn tại
+      if (sortedLessons.includes(lessonKey)) {
+        setSelectedLesson(lessonKey)
+      }
     }
-  }, [selectedSheet, lessonNumber])
+  }, [lessonNumber, selectedSheet, data])
 
-  // Load lesson data when selectedSheet and selectedLesson change
+  // Load lesson data khi selectedSheet và selectedLesson thay đổi
   useEffect(() => {
-    if (selectedSheet && selectedLesson) {
-      const sheetData = data[selectedSheet as keyof typeof data]
-      const lessonData = sheetData?.[selectedLesson as keyof typeof sheetData] as any
+    if (selectedSheet && selectedLesson && data[selectedSheet]) {
+      const sheetData = data[selectedSheet]
+      const lessonData = sheetData[selectedLesson] as any
       const studentBook = (studentBooks as Record<string, string>)[selectedSheet] || ""
+      
       if (lessonData) {
-        // Map data correctly to form fields
+        // Map data đúng vào form fields
         setFormData({
           lesson_content: lessonData.lesson_content || "",
           student_book: studentBook,
@@ -194,7 +234,7 @@ export default function Home() {
           next_requirement: lessonData.next_requirement || "",
         })
       } else {
-        // Reset form if lesson doesn't exist
+        // Reset form nếu lesson không tồn tại
         setFormData({
           lesson_content: "",
           student_book: studentBook,
@@ -205,8 +245,19 @@ export default function Home() {
           next_requirement: "",
         })
       }
+    } else if (!selectedSheet || !selectedLesson) {
+      // Reset form khi không chọn sheet hoặc lesson
+      setFormData({
+        lesson_content: "",
+        student_book: "",
+        next_lesson_content: "",
+        video: "",
+        homework_result: "",
+        deadline: "",
+        next_requirement: "",
+      })
     }
-  }, [selectedSheet, selectedLesson])
+  }, [selectedSheet, selectedLesson, data, studentBooks])
 
   const handleFieldChange = (field: keyof LessonData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -216,10 +267,6 @@ export default function Home() {
     setCheckedFields((prev) => ({ ...prev, [field]: checked }))
   }
 
-  const handleLessonNumberChange = (delta: number) => {
-    const newNumber = Math.max(1, lessonNumber + delta)
-    setLessonNumber(newNumber)
-  }
 
   const generateContent = () => {
     let content = ""
@@ -242,33 +289,38 @@ export default function Home() {
       content += `${formData.lesson_content}\n`
     }
 
-    // Student Book
-    if (formData.student_book.trim()) {
+    // Tình hình học tập của lớp
+    if (classSituation.trim()) {
+      content += `**📊 Tình hình học tập của lớp:**\n${classSituation}\n`
+    }
+
+    // Student Book - chỉ thêm nếu checkbox được chọn
+    if (checkedFields.slide && formData.student_book.trim()) {
       content += `**📚 Student Book:**\n${formData.student_book}\n`
     }
 
-    // Link video
-    if (formData.video.trim()) {
+    // Link video - chỉ thêm nếu checkbox được chọn
+    if (checkedFields.video && formData.video.trim()) {
       content += `**🎥 Link video:**\n${formData.video}\n`
     }
 
-    // Kết quả bài tập về nhà
-    if (formData.homework_result.trim()) {
+    // Kết quả bài tập về nhà - chỉ thêm nếu checkbox được chọn
+    if (checkedFields.homework_result && formData.homework_result.trim()) {
       content += `**✅ Kết quả bài tập về nhà:**\n${formData.homework_result}\n`
     }
 
-    // Yêu cầu cho buổi tiếp theo
-    if (formData.next_requirement.trim()) {
+    // Yêu cầu cho buổi tiếp theo - chỉ thêm nếu checkbox được chọn
+    if (checkedFields.next_requirement && formData.next_requirement.trim()) {
       content += `**📋 Yêu cầu cho buổi tiếp theo:**\n${formData.next_requirement}\n`
     }
 
-    // Hạn nộp bài
-    if (formData.deadline.trim()) {
+    // Hạn nộp bài - chỉ thêm nếu checkbox được chọn
+    if (checkedFields.deadline && formData.deadline.trim()) {
       content += `**⏰ Hạn nộp bài:**\n${formData.deadline}\n`
     }
 
-    // Nội dung buổi tới
-    if (formData.next_lesson_content.trim()) {
+    // Nội dung buổi tới - chỉ thêm nếu checkbox được chọn
+    if (checkedFields.next_lesson_content && formData.next_lesson_content.trim()) {
       content += `**📖 Nội dung buổi tới:**\n${formData.next_lesson_content}\n`
     }
 
@@ -360,31 +412,25 @@ export default function Home() {
             <div className="space-y-2">
               <Label htmlFor="lessonNumber">Số bài học:</Label>
               <Select
-                value={lessonNumber.toString()}
+                value={selectedSheet && selectedLesson ? lessonNumber.toString() : ""}
                 onValueChange={(value) => {
                   const num = parseInt(value) || 1
                   setLessonNumber(num)
-                  if (selectedSheet) {
-                    setSelectedLesson(`lesson_${num}`)
-                  }
                 }}
+                disabled={!selectedSheet}
               >
                 <SelectTrigger id="lessonNumber" className="w-full">
-                  <SelectValue placeholder="Chọn bài học" />
+                  <SelectValue placeholder={selectedSheet ? "Chọn bài học" : "Chọn sheet trước"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedSheet && (() => {
-                    const sheetData = data[selectedSheet as keyof typeof data]
-                    const lessons = sheetData ? Object.keys(sheetData).filter(key => key.startsWith('lesson_')) : []
-                    return lessons.map((lesson) => {
-                      const num = parseInt(lesson.replace('lesson_', '')) || 1
-                      return (
-                        <SelectItem key={lesson} value={num.toString()}>
-                          Bài {num}
-                        </SelectItem>
-                      )
-                    })
-                  })()}
+                  {selectedSheet && getSortedLessons(selectedSheet).map((lesson) => {
+                    const num = parseInt(lesson.replace('lesson_', '')) || 1
+                    return (
+                      <SelectItem key={lesson} value={num.toString()}>
+                        Bài {num}
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -410,8 +456,8 @@ export default function Home() {
               <Label htmlFor="class_situation">Tình hình học tập của lớp:</Label>
               <Textarea
                 id="class_situation"
-                value=""
-                onChange={() => {}}
+                value={classSituation}
+                onChange={(e) => setClassSituation(e.target.value)}
                 placeholder="Nhập tình hình học tập của lớp..."
                 rows={4}
                 className="resize-none"
@@ -641,28 +687,28 @@ export default function Home() {
           <div className="sticky top-6">
             <div className="space-y-2">
               <Label className="text-lg font-semibold">Kết quả (có thể copy với format):</Label>
-              {result ? (
-                <div className="space-y-2">
-                  <div
-                    contentEditable
-                    suppressContentEditableWarning
-                    onBlur={(e) => {
-                      // Convert HTML back to markdown when editing
-                      const html = e.currentTarget.innerHTML
-                      const text = html.replace(/<strong>(.*?)<\/strong>/g, '**$1**')
-                        .replace(/<b>(.*?)<\/b>/g, '**$1**')
-                        .replace(/<br\s*\/?>/g, '\n')
-                        .replace(/&nbsp;/g, ' ')
-                      setResult(text)
-                    }}
-                    className="border rounded-md p-4 text-sm bg-background whitespace-pre-wrap min-h-[400px] focus:outline-none focus:ring-2 focus:ring-ring"
-                    style={{ fontFamily: "'Times New Roman', Times, serif" }}
-                    dangerouslySetInnerHTML={{
-                      __html: result
+              <div className="space-y-2">
+                <CKEditor
+                  value={result 
+                    ? result
                         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                         .replace(/\n/g, '<br>')
-                    }}
-                  />
+                    : ''}
+                  onChange={(data) => {
+                    // Convert HTML back to markdown format
+                    const text = data
+                      .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+                      .replace(/<b>(.*?)<\/b>/g, '**$1**')
+                      .replace(/<br\s*\/?>/g, '\n')
+                      .replace(/&nbsp;/g, ' ')
+                      .replace(/<p>(.*?)<\/p>/g, '$1\n')
+                      .replace(/<\/?[^>]+(>|$)/g, '')
+                      .trim()
+                    setResult(text)
+                  }}
+                  placeholder={result ? "Kết quả sẽ hiển thị ở đây..." : "Vui lòng chọn Sheet và Bài học trước khi tạo nội dung."}
+                />
+                {result && (
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -701,12 +747,8 @@ export default function Home() {
                       Copy với format
                     </Button>
                   </div>
-                </div>
-              ) : (
-                <div className="border rounded-md p-8 text-center text-muted-foreground bg-muted/50 min-h-[400px] flex items-center justify-center">
-                  <p>Kết quả sẽ hiển thị ở đây sau khi nhấn "Tạo nội dung"</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
