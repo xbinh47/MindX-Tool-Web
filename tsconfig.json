@@ -24,9 +24,9 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "app", "lib", "components"],
   "references": [{ "path": "./tsconfig.app.json" }]
 }

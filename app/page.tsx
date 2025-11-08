@@ -9,8 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChevronUp, ChevronDown, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import data from "@/data/data.json"
-import studentBooks from "@/data/student-books.json"
 
 interface LessonData {
   lesson_content: string
@@ -42,9 +40,10 @@ export default function Home() {
       console.error("setTheme is not available")
       return
     }
+    if (typeof window === 'undefined') return
+    
     try {
       const newTheme = currentTheme === "light" ? "dark" : "light"
-      console.log("Toggling theme from", currentTheme, "to", newTheme)
       
       // Update local state immediately for icon
       setCurrentTheme(newTheme)
@@ -57,8 +56,6 @@ export default function Home() {
       
       // Then update theme state
       setTheme(newTheme)
-      
-      console.log("Theme toggled. HTML classes:", root.className)
     } catch (error) {
       console.error("Error toggling theme:", error)
     }
@@ -86,8 +83,30 @@ export default function Home() {
   })
   const [greeting, setGreeting] = useState<string>("Chào cả lớp, Thầy gửi nội dung buổi học vừa qua")
   const [result, setResult] = useState<string>("")
+  const [data, setData] = useState<Record<string, any>>({})
+  const [studentBooks, setStudentBooks] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState<boolean>(true)
 
   const sheets = Object.keys(data)
+
+  // Fetch data from Firestore
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const { getAllSubjects } = await import('../lib/firebase-client')
+        const result = await getAllSubjects()
+        setData(result.data || {})
+        setStudentBooks(result.studentBooks || {})
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
 
   // Handle mounting for theme
   useEffect(() => {
@@ -100,7 +119,7 @@ export default function Home() {
 
   // Apply theme class to HTML element - ensure it's applied
   useEffect(() => {
-    if (mounted) {
+    if (mounted && typeof window !== 'undefined') {
       const root = document.documentElement
       const currentTheme = theme || "light"
       
@@ -112,8 +131,6 @@ export default function Home() {
       
       // Also set data-theme attribute
       root.setAttribute("data-theme", currentTheme)
-      
-      console.log("Applied theme class:", currentTheme, "to HTML element. Current classes:", root.className)
     }
   }, [theme, mounted])
 
@@ -259,6 +276,17 @@ export default function Home() {
     // Note: This field is currently empty in the form, but we can add it if needed
 
     setResult(content.trim())
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen p-6 bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
