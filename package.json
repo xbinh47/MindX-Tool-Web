@@ -77,7 +77,14 @@
     "vite": "latest",
     "yaml": "latest",
     "zod": "3.25.76",
-    "@ckeditor/ckeditor5-build-classic": "^43.0.0"
+    "@tiptap/react": "^2.1.13",
+    "@tiptap/starter-kit": "^2.1.13",
+    "@tiptap/extension-text-style": "^2.1.13",
+    "@tiptap/extension-color": "^2.1.13",
+    "@tiptap/extension-highlight": "^2.1.13",
+    "@tiptap/extension-text-align": "^2.1.13",
+    "@tiptap/extension-link": "^2.1.13",
+    "@tiptap/extension-underline": "^2.1.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
