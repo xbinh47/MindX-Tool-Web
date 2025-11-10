@@ -429,12 +429,18 @@ export default function Home() {
           </div>
 
           {/* Subject and Level Selection */}
-          <div className="space-y-2">
+            <div className="space-y-2">
             <Label>Môn học và Level:</Label>
             <div className="relative">
               {/* Subject Selector Button */}
               <button
                 type="button"
+                ref={(el) => {
+                  if (el) {
+                    // Lưu reference của main button để dùng cho submenu positioning
+                    (window as any).__mainSubjectButtonRef = el
+                  }
+                }}
                 onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)}
                 className="w-full text-left px-4 py-3 rounded-md text-sm border bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200 flex items-center justify-between"
               >
@@ -507,19 +513,24 @@ export default function Home() {
                               if (el && el.parentElement) {
                                 // Điều chỉnh vị trí sau khi render xong
                                 setTimeout(() => {
-                                  const buttonRect = el.parentElement?.getBoundingClientRect()
-                                  if (!buttonRect) return
+                                  // Lấy vị trí của subject button (item đang được hover)
+                                  const subjectButton = el.parentElement?.querySelector('button') as HTMLElement
+                                  if (!subjectButton) return
                                   
+                                  const subjectButtonRect = subjectButton.getBoundingClientRect()
                                   const viewportWidth = window.innerWidth
                                   const viewportHeight = window.innerHeight
                                   
-                                  // Tính toán vị trí: bên phải của button
-                                  let left = buttonRect.right + 4
-                                  let top = buttonRect.top
+                                  // Tính toán vị trí: bên phải của subject button
+                                  let left = subjectButtonRect.right + 4
+                                  // Top của submenu = top của subject button (để option đầu tiên ngang với subject item)
+                                  // Trừ đi chiều cao của header "Level" để option đầu tiên ngang với subject item
+                                  const headerHeight = el.querySelector('.text-xs.font-medium')?.getBoundingClientRect().height || 0
+                                  let top = subjectButtonRect.top - headerHeight
                                   
                                   // Nếu tràn ra ngoài màn hình bên phải, hiện bên trái
                                   if (left + 300 > viewportWidth - 20) {
-                                    left = buttonRect.left - 300 - 4
+                                    left = subjectButtonRect.left - 300 - 4
                                   }
                                   
                                   // Điều chỉnh vị trí dọc nếu tràn ra ngoài màn hình
@@ -568,11 +579,11 @@ export default function Home() {
                 </div>
               )}
             </div>
-          </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lessonNumber">Số bài học:</Label>
-            <Select
+            <div className="space-y-2">
+              <Label htmlFor="lessonNumber">Số bài học:</Label>
+              <Select
                 value={selectedSubject && selectedLevel && selectedLesson ? lessonNumber.toString() : ""}
                 onValueChange={(value) => {
                   const num = parseInt(value) || 1
@@ -593,7 +604,7 @@ export default function Home() {
                     )
                   })}
                 </SelectContent>
-            </Select>
+              </Select>
           </div>
 
           {/* Form Fields with Checkboxes */}
@@ -609,7 +620,7 @@ export default function Home() {
                 rows={4}
                 className="resize-none"
               />
-            </div>
+        </div>
 
             {/* Tình hình học tập của lớp - Always visible, but student_book in JSON is actually slide link */}
             <div className="space-y-2">
@@ -621,8 +632,8 @@ export default function Home() {
                 placeholder="Nhập tình hình học tập của lớp..."
                 rows={4}
                 className="resize-none"
-              />
-            </div>
+            />
+          </div>
 
             {/* Student Book - Hidden by default, uses student_book from JSON */}
             {checkedFields.slide && (
@@ -636,7 +647,7 @@ export default function Home() {
                   <Label htmlFor="slide" className="cursor-pointer">
                     Student Book:
                   </Label>
-                </div>
+          </div>
                 <Input
                   id="slide"
                   type="url"
@@ -644,7 +655,7 @@ export default function Home() {
                   onChange={(e) => handleFieldChange("student_book", e.target.value)}
                   placeholder="Nhập Student Book..."
                 />
-              </div>
+        </div>
             )}
 
             {/* Link video - Hidden by default */}
@@ -696,7 +707,7 @@ export default function Home() {
 
             {/* Yêu cầu cho buổi tiếp theo - Hidden by default */}
             {checkedFields.next_requirement && (
-              <div className="space-y-2">
+                <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="next_requirement"
@@ -706,7 +717,7 @@ export default function Home() {
                   <Label htmlFor="next_requirement" className="cursor-pointer">
                     Yêu cầu cho buổi tiếp theo:
                   </Label>
-                </div>
+                  </div>
                 <Textarea
                   id="next_requirement"
                   value={formData.next_requirement}
@@ -715,7 +726,7 @@ export default function Home() {
                   rows={4}
                   className="resize-none"
                 />
-              </div>
+                  </div>
             )}
 
             {/* Hạn nộp bài - Hidden by default */}
@@ -765,7 +776,7 @@ export default function Home() {
                 />
               </div>
             )}
-          </div>
+              </div>
 
           {/* Checkbox buttons to show hidden fields */}
           <div className="space-y-2 border-t pt-4">
@@ -838,8 +849,8 @@ export default function Home() {
           <div className="flex justify-center pt-4">
             <Button onClick={generateContent} size="lg" className="w-full">
               Tạo nội dung
-            </Button>
-          </div>
+                </Button>
+              </div>
         </div>
 
         {/* Right Column - Result Display */}
