@@ -8,7 +8,7 @@ import { CKEditor } from "@/components/ui/ckeditor"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Moon, Sun } from "lucide-react"
+import { Moon, Sun, ChevronRight } from "lucide-react"
 import { useTheme } from "next-themes"
 
 interface LessonData {
@@ -61,7 +61,10 @@ export default function Home() {
       console.error("Error toggling theme:", error)
     }
   }
-  const [selectedSheet, setSelectedSheet] = useState<string>("")
+  const [selectedSubject, setSelectedSubject] = useState<string>("")
+  const [selectedLevel, setSelectedLevel] = useState<string>("")
+  const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState<boolean>(false)
+  const [hoveredSubject, setHoveredSubject] = useState<string>("")
   const [selectedLesson, setSelectedLesson] = useState<string>("")
   const [lessonNumber, setLessonNumber] = useState<number>(1)
   const [formData, setFormData] = useState<LessonData>({
@@ -85,16 +88,33 @@ export default function Home() {
   const [greeting, setGreeting] = useState<string>("Chào cả lớp, Thầy gửi nội dung buổi học vừa qua")
   const [classSituation, setClassSituation] = useState<string>("")
   const [result, setResult] = useState<string>("")
-  const [data, setData] = useState<Record<string, any>>({})
+  const [data, setData] = useState<Record<string, Record<string, Record<string, any>>>>({})
   const [studentBooks, setStudentBooks] = useState<Record<string, string>>({})
+  const [subjectNames, setSubjectNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState<boolean>(true)
 
-  const sheets = Object.keys(data)
+  const subjects = Object.keys(data)
 
-  // Helper function: Lấy danh sách lessons đã sắp xếp theo số thứ tự
-  const getSortedLessons = (sheet: string): string[] => {
-    if (!sheet || !data[sheet]) return []
-    return Object.keys(data[sheet])
+  // Helper function: Lấy tên subject từ code (từ Firebase hoặc fallback)
+  const getSubjectName = (code: string): string => {
+    return subjectNames[code] || code
+  }
+
+  // Helper function: Lấy danh sách levels cho một subject
+  const getLevelsForSubject = (subjectCode: string): string[] => {
+    if (!subjectCode || !data[subjectCode]) {
+      console.log(`[DEBUG] Subject ${subjectCode} không có trong data:`, Object.keys(data))
+      return []
+    }
+    const levels = Object.keys(data[subjectCode])
+    console.log(`[DEBUG] Subject ${subjectCode} có ${levels.length} levels:`, levels)
+    return levels
+  }
+
+  // Helper function: Lấy danh sách lessons đã sắp xếp theo số thứ tự cho một level
+  const getSortedLessons = (subjectCode: string, levelCode: string): string[] => {
+    if (!subjectCode || !levelCode || !data[subjectCode] || !data[subjectCode][levelCode]) return []
+    return Object.keys(data[subjectCode][levelCode])
       .filter(key => key.startsWith('lesson_'))
       .sort((a, b) => {
         const numA = parseInt(a.replace('lesson_', '')) || 0
@@ -110,8 +130,11 @@ export default function Home() {
         setLoading(true)
         const { getAllSubjects } = await import('../lib/firebase-client')
         const result = await getAllSubjects()
+        console.log('[DEBUG] Fetched data:', result)
+        console.log('[DEBUG] ROB data:', result.data?.ROB)
         setData(result.data || {})
         setStudentBooks(result.studentBooks || {})
+        setSubjectNames(result.subjectNames || {})
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -182,10 +205,24 @@ export default function Home() {
     localStorage.setItem("checkedFields", JSON.stringify(checkedFields))
   }, [checkedFields])
 
-  // Khi chọn sheet mới, tự động chọn lesson đầu tiên
+  // Reset level khi subject thay đổi
   useEffect(() => {
-    if (selectedSheet && data[selectedSheet]) {
-      const sortedLessons = getSortedLessons(selectedSheet)
+    if (selectedSubject) {
+      const levels = getLevelsForSubject(selectedSubject)
+      if (levels.length > 0 && !levels.includes(selectedLevel)) {
+        setSelectedLevel(levels[0])
+      } else if (levels.length === 0) {
+        setSelectedLevel("")
+      }
+    } else {
+      setSelectedLevel("")
+    }
+  }, [selectedSubject, data])
+
+  // Khi chọn level mới, tự động chọn lesson đầu tiên
+  useEffect(() => {
+    if (selectedSubject && selectedLevel && data[selectedSubject] && data[selectedSubject][selectedLevel]) {
+      const sortedLessons = getSortedLessons(selectedSubject, selectedLevel)
       if (sortedLessons.length > 0) {
         const firstLesson = sortedLessons[0]
         const num = parseInt(firstLesson.replace('lesson_', '')) || 1
@@ -196,31 +233,31 @@ export default function Home() {
         setLessonNumber(1)
         setSelectedLesson("")
       }
-    } else if (!selectedSheet) {
-      // Reset khi không chọn sheet
+    } else if (!selectedSubject || !selectedLevel) {
+      // Reset khi không chọn subject hoặc level
       setLessonNumber(1)
       setSelectedLesson("")
     }
-  }, [selectedSheet, data])
+  }, [selectedSubject, selectedLevel, data])
 
   // Khi lessonNumber thay đổi, cập nhật selectedLesson
   useEffect(() => {
-    if (selectedSheet && lessonNumber) {
+    if (selectedSubject && selectedLevel && lessonNumber) {
       const lessonKey = `lesson_${lessonNumber}`
-      const sortedLessons = getSortedLessons(selectedSheet)
+      const sortedLessons = getSortedLessons(selectedSubject, selectedLevel)
       // Chỉ set nếu lesson tồn tại
       if (sortedLessons.includes(lessonKey)) {
         setSelectedLesson(lessonKey)
       }
     }
-  }, [lessonNumber, selectedSheet, data])
+  }, [lessonNumber, selectedSubject, selectedLevel, data])
 
-  // Load lesson data khi selectedSheet và selectedLesson thay đổi
+  // Load lesson data khi selectedSubject, selectedLevel và selectedLesson thay đổi
   useEffect(() => {
-    if (selectedSheet && selectedLesson && data[selectedSheet]) {
-      const sheetData = data[selectedSheet]
-      const lessonData = sheetData[selectedLesson] as any
-      const studentBook = (studentBooks as Record<string, string>)[selectedSheet] || ""
+    if (selectedSubject && selectedLevel && selectedLesson && data[selectedSubject] && data[selectedSubject][selectedLevel]) {
+      const levelData = data[selectedSubject][selectedLevel]
+      const lessonData = levelData[selectedLesson] as any
+      const studentBook = (studentBooks as Record<string, string>)[selectedLevel] || ""
       
       if (lessonData) {
         // Map data đúng vào form fields
@@ -245,8 +282,8 @@ export default function Home() {
           next_requirement: "",
         })
       }
-    } else if (!selectedSheet || !selectedLesson) {
-      // Reset form khi không chọn sheet hoặc lesson
+    } else if (!selectedSubject || !selectedLevel || !selectedLesson) {
+      // Reset form khi không chọn subject, level hoặc lesson
       setFormData({
         lesson_content: "",
         student_book: "",
@@ -257,7 +294,7 @@ export default function Home() {
         next_requirement: "",
       })
     }
-  }, [selectedSheet, selectedLesson, data, studentBooks])
+  }, [selectedSubject, selectedLevel, selectedLesson, data, studentBooks])
 
   const handleFieldChange = (field: keyof LessonData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -271,8 +308,8 @@ export default function Home() {
   const generateContent = () => {
     let content = ""
     
-    if (!selectedSheet || !selectedLesson) {
-      setResult("Vui lòng chọn Sheet và Bài học trước khi tạo nội dung.")
+    if (!selectedSubject || !selectedLevel || !selectedLesson) {
+      setResult("Vui lòng chọn Môn học, Level và Bài học trước khi tạo nội dung.")
       return
     }
 
@@ -391,39 +428,163 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Sheet and Lesson Selection */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="sheet">Tên sheet:</Label>
-              <Select value={selectedSheet} onValueChange={setSelectedSheet}>
-                <SelectTrigger id="sheet" className="w-full">
-                  <SelectValue placeholder="Chọn sheet" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sheets.map((sheet) => (
-                    <SelectItem key={sheet} value={sheet}>
-                      {sheet}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              </div>
+          {/* Subject and Level Selection */}
+          <div className="space-y-2">
+            <Label>Môn học và Level:</Label>
+            <div className="relative">
+              {/* Subject Selector Button */}
+              <button
+                type="button"
+                onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)}
+                className="w-full text-left px-4 py-3 rounded-md text-sm border bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200 flex items-center justify-between"
+              >
+                <span>
+                  {selectedSubject 
+                    ? getSubjectName(selectedSubject) 
+                    : "Chọn môn học"}
+                </span>
+                <ChevronRight 
+                  className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
+                    isSubjectDropdownOpen ? 'rotate-90' : ''
+                  }`}
+                />
+              </button>
 
-            <div className="space-y-2">
-              <Label htmlFor="lessonNumber">Số bài học:</Label>
-              <Select
-                value={selectedSheet && selectedLesson ? lessonNumber.toString() : ""}
+              {/* Subject Dropdown Menu */}
+              {isSubjectDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 border rounded-md divide-y bg-background shadow-lg z-50 max-h-[calc(100vh-200px)] overflow-y-auto">
+                  {subjects.map((subject) => {
+                    const isSelected = selectedSubject === subject
+                    const isHovered = hoveredSubject === subject
+                    const subjectName = getSubjectName(subject)
+                    const levels = getLevelsForSubject(subject)
+                    const hasLevels = levels.length > 0
+                    
+                    return (
+                      <div
+                        key={subject}
+                        className="relative group"
+                        onMouseEnter={() => hasLevels && setHoveredSubject(subject)}
+                        onMouseLeave={() => setHoveredSubject("")}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSubject(subject)
+                            if (hasLevels && !levels.includes(selectedLevel)) {
+                              setSelectedLevel(levels[0])
+                            }
+                            setIsSubjectDropdownOpen(false)
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-md text-sm transition-all duration-200 flex items-center justify-between ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground font-medium'
+                              : 'hover:bg-accent hover:text-accent-foreground'
+                          }`}
+                        >
+                          <span>{subjectName}</span>
+                          {hasLevels && (
+                            <ChevronRight 
+                              className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
+                                isHovered ? 'translate-x-1' : ''
+                              }`}
+                            />
+                          )}
+                        </button>
+                        
+                        {/* Submenu: Level List - hiện khi hover vào subject */}
+                        {isHovered && hasLevels && (
+                          <div 
+                            className="fixed min-w-[200px] max-w-[300px] border rounded-md bg-background shadow-lg"
+                            style={{
+                              maxHeight: 'calc(100vh - 200px)',
+                              overflowY: 'auto',
+                              zIndex: 100
+                            }}
+                            onMouseEnter={() => setHoveredSubject(subject)}
+                            onMouseLeave={() => setHoveredSubject("")}
+                            ref={(el) => {
+                              if (el && el.parentElement) {
+                                // Điều chỉnh vị trí sau khi render xong
+                                setTimeout(() => {
+                                  const buttonRect = el.parentElement?.getBoundingClientRect()
+                                  if (!buttonRect) return
+                                  
+                                  const viewportWidth = window.innerWidth
+                                  const viewportHeight = window.innerHeight
+                                  
+                                  // Tính toán vị trí: bên phải của button
+                                  let left = buttonRect.right + 4
+                                  let top = buttonRect.top
+                                  
+                                  // Nếu tràn ra ngoài màn hình bên phải, hiện bên trái
+                                  if (left + 300 > viewportWidth - 20) {
+                                    left = buttonRect.left - 300 - 4
+                                  }
+                                  
+                                  // Điều chỉnh vị trí dọc nếu tràn ra ngoài màn hình
+                                  if (top + el.offsetHeight > viewportHeight - 20) {
+                                    top = viewportHeight - el.offsetHeight - 20
+                                  }
+                                  
+                                  el.style.left = `${left}px`
+                                  el.style.top = `${top}px`
+                                }, 0)
+                              }
+                            }}
+                          >
+                            <div className="text-xs font-medium text-muted-foreground px-4 py-2 border-b bg-muted/50 sticky top-0">
+                              Level
+                            </div>
+                            <div className="divide-y">
+                              {levels.map((level) => {
+                                const isLevelSelected = selectedLevel === level && selectedSubject === subject
+                                return (
+                                  <button
+                                    key={level}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSubject(subject)
+                                      setSelectedLevel(level)
+                                      setIsSubjectDropdownOpen(false)
+                                      setHoveredSubject("")
+                                    }}
+                                    className={`w-full text-left px-4 py-3 text-sm transition-all duration-200 ${
+                                      isLevelSelected
+                                        ? 'bg-primary text-primary-foreground font-medium'
+                                        : 'hover:bg-accent hover:text-accent-foreground'
+                                    }`}
+                                  >
+                                    {level}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lessonNumber">Số bài học:</Label>
+            <Select
+                value={selectedSubject && selectedLevel && selectedLesson ? lessonNumber.toString() : ""}
                 onValueChange={(value) => {
                   const num = parseInt(value) || 1
                   setLessonNumber(num)
                 }}
-                disabled={!selectedSheet}
+                disabled={!selectedSubject || !selectedLevel}
               >
                 <SelectTrigger id="lessonNumber" className="w-full">
-                  <SelectValue placeholder={selectedSheet ? "Chọn bài học" : "Chọn sheet trước"} />
+                  <SelectValue placeholder={selectedSubject && selectedLevel ? "Chọn bài học" : "Chọn môn học và level trước"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedSheet && getSortedLessons(selectedSheet).map((lesson) => {
+                  {selectedSubject && selectedLevel && getSortedLessons(selectedSubject, selectedLevel).map((lesson) => {
                     const num = parseInt(lesson.replace('lesson_', '')) || 1
                     return (
                       <SelectItem key={lesson} value={num.toString()}>
@@ -432,8 +593,7 @@ export default function Home() {
                     )
                   })}
                 </SelectContent>
-              </Select>
-            </div>
+            </Select>
           </div>
 
           {/* Form Fields with Checkboxes */}
@@ -449,7 +609,7 @@ export default function Home() {
                 rows={4}
                 className="resize-none"
               />
-        </div>
+            </div>
 
             {/* Tình hình học tập của lớp - Always visible, but student_book in JSON is actually slide link */}
             <div className="space-y-2">
@@ -461,8 +621,8 @@ export default function Home() {
                 placeholder="Nhập tình hình học tập của lớp..."
                 rows={4}
                 className="resize-none"
-            />
-          </div>
+              />
+            </div>
 
             {/* Student Book - Hidden by default, uses student_book from JSON */}
             {checkedFields.slide && (
@@ -476,7 +636,7 @@ export default function Home() {
                   <Label htmlFor="slide" className="cursor-pointer">
                     Student Book:
                   </Label>
-          </div>
+                </div>
                 <Input
                   id="slide"
                   type="url"
@@ -484,7 +644,7 @@ export default function Home() {
                   onChange={(e) => handleFieldChange("student_book", e.target.value)}
                   placeholder="Nhập Student Book..."
                 />
-        </div>
+              </div>
             )}
 
             {/* Link video - Hidden by default */}
@@ -536,7 +696,7 @@ export default function Home() {
 
             {/* Yêu cầu cho buổi tiếp theo - Hidden by default */}
             {checkedFields.next_requirement && (
-                <div className="space-y-2">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="next_requirement"
@@ -546,7 +706,7 @@ export default function Home() {
                   <Label htmlFor="next_requirement" className="cursor-pointer">
                     Yêu cầu cho buổi tiếp theo:
                   </Label>
-                  </div>
+                </div>
                 <Textarea
                   id="next_requirement"
                   value={formData.next_requirement}
@@ -555,7 +715,7 @@ export default function Home() {
                   rows={4}
                   className="resize-none"
                 />
-                  </div>
+              </div>
             )}
 
             {/* Hạn nộp bài - Hidden by default */}
@@ -605,7 +765,7 @@ export default function Home() {
                 />
               </div>
             )}
-              </div>
+          </div>
 
           {/* Checkbox buttons to show hidden fields */}
           <div className="space-y-2 border-t pt-4">
@@ -678,8 +838,8 @@ export default function Home() {
           <div className="flex justify-center pt-4">
             <Button onClick={generateContent} size="lg" className="w-full">
               Tạo nội dung
-                </Button>
-              </div>
+            </Button>
+          </div>
         </div>
 
         {/* Right Column - Result Display */}
@@ -754,7 +914,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Copyright - Fixed at bottom */}
       <div className="fixed bottom-4 right-4 text-sm text-muted-foreground">
         © Xuân Bình
       </div>

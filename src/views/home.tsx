@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronUp, ChevronDown } from "lucide-react"
-import data from "@/data/data.json"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { ChevronUp, ChevronDown, ChevronRight } from "lucide-react"
+// Import subjects.json từ root directory
+// @ts-ignore - JSON import
+import subjectsData from "../../subjects.json"
 
 interface LessonData {
   lesson_content: string
@@ -20,10 +22,29 @@ interface LessonData {
   next_requirement: string
 }
 
+interface SubjectData {
+  [levelKey: string]: {
+    [lessonKey: string]: LessonData
+  }
+}
+
+interface SubjectsStructure {
+  [subjectName: string]: SubjectData | {
+    ROB?: {
+      [levelKey: string]: {
+        [lessonKey: string]: LessonData
+      }
+    }
+  }
+}
+
+
 export default function Home() {
-  const [selectedSheet, setSelectedSheet] = useState<string>("")
+  const [selectedSubject, setSelectedSubject] = useState<string>("")
+  const [selectedLevel, setSelectedLevel] = useState<string>("")
   const [selectedLesson, setSelectedLesson] = useState<string>("")
   const [lessonNumber, setLessonNumber] = useState<number>(1)
+  const [openAccordion, setOpenAccordion] = useState<string>("")
   const [formData, setFormData] = useState<LessonData>({
     lesson_content: "",
     student_book: "",
@@ -44,21 +65,68 @@ export default function Home() {
   })
   const [result, setResult] = useState<string>("")
 
-  const sheets = Object.keys(data)
+  const data = subjectsData as SubjectsStructure
+  const subjects = Object.keys(data)
 
-  // Update selectedLesson when sheet or lessonNumber changes
+  // Lấy danh sách levels dựa trên subject đã chọn
+  const getLevelsForSubject = (subjectName: string): string[] => {
+    if (!subjectName || !data[subjectName]) return []
+    
+    const subjectData = data[subjectName]
+    
+    // Xử lý ROB có cấu trúc đặc biệt
+    if (subjectName === "Robotics (ROB)" && 'ROB' in subjectData) {
+      return Object.keys((subjectData as any).ROB || {})
+    }
+    
+    // Các môn khác
+    return Object.keys(subjectData)
+  }
+
+
+  // Reset level khi subject thay đổi
   useEffect(() => {
-    if (selectedSheet && lessonNumber) {
+    if (selectedSubject) {
+      const levels = getLevelsForSubject(selectedSubject)
+      if (levels.length > 0 && !levels.includes(selectedLevel)) {
+        setSelectedLevel(levels[0])
+      } else if (levels.length === 0) {
+        setSelectedLevel("")
+      }
+    } else {
+      setSelectedLevel("")
+    }
+  }, [selectedSubject])
+
+  // Update selectedLesson when level or lessonNumber changes
+  useEffect(() => {
+    if (selectedLevel && lessonNumber) {
       const lessonKey = `lesson_${lessonNumber}`
       setSelectedLesson(lessonKey)
     }
-  }, [selectedSheet, lessonNumber])
+  }, [selectedLevel, lessonNumber])
 
-  // Load lesson data when selectedSheet and selectedLesson change
+  // Load lesson data when selectedSubject, selectedLevel and selectedLesson change
   useEffect(() => {
-    if (selectedSheet && selectedLesson) {
-      const sheetData = data[selectedSheet as keyof typeof data]
-      const lessonData = sheetData?.[selectedLesson as keyof typeof sheetData] as LessonData | undefined
+    if (selectedSubject && selectedLevel && selectedLesson) {
+      const subjectData = data[selectedSubject]
+      let levelData: { [lessonKey: string]: LessonData } | undefined
+      
+      // Xử lý ROB có cấu trúc đặc biệt
+      if (selectedSubject === "Robotics (ROB)") {
+        const robData = subjectData as { ROB?: { [levelKey: string]: { [lessonKey: string]: LessonData } } }
+        if (robData.ROB && robData.ROB[selectedLevel]) {
+          levelData = robData.ROB[selectedLevel]
+        }
+      } else {
+        // Các môn khác
+        const normalData = subjectData as SubjectData
+        if (normalData[selectedLevel]) {
+          levelData = normalData[selectedLevel]
+        }
+      }
+      
+      const lessonData = levelData?.[selectedLesson] as LessonData | undefined
       if (lessonData) {
         setFormData(lessonData)
       } else {
@@ -74,7 +142,7 @@ export default function Home() {
         })
       }
     }
-  }, [selectedSheet, selectedLesson])
+  }, [selectedSubject, selectedLevel, selectedLesson])
 
   const handleFieldChange = (field: keyof LessonData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -91,9 +159,25 @@ export default function Home() {
 
   const generateContent = () => {
     const output: Record<string, any> = {}
-    if (selectedSheet) {
-      output[selectedSheet] = {}
-      output[selectedSheet][selectedLesson] = formData
+    if (selectedSubject && selectedLevel) {
+      // Xử lý ROB có cấu trúc đặc biệt
+      if (selectedSubject === "Robotics (ROB)") {
+        if (!output[selectedSubject]) {
+          output[selectedSubject] = { ROB: {} }
+        }
+        if (!output[selectedSubject].ROB[selectedLevel]) {
+          output[selectedSubject].ROB[selectedLevel] = {}
+        }
+        output[selectedSubject].ROB[selectedLevel][selectedLesson] = formData
+      } else {
+        if (!output[selectedSubject]) {
+          output[selectedSubject] = {}
+        }
+        if (!output[selectedSubject][selectedLevel]) {
+          output[selectedSubject][selectedLevel] = {}
+        }
+        output[selectedSubject][selectedLevel][selectedLesson] = formData
+      }
     }
     setResult(JSON.stringify(output, null, 2))
   }
@@ -105,24 +189,102 @@ export default function Home() {
         <h1 className="text-3xl font-bold">Quản Lý Bài Học</h1>
       </div>
 
-      {/* Sheet and Lesson Selection */}
+      {/* Subject, Level and Lesson Selection */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Subject và Level với Accordion */}
         <div className="space-y-2">
-          <Label htmlFor="sheet">Tên sheet:</Label>
-          <Select value={selectedSheet} onValueChange={setSelectedSheet}>
-            <SelectTrigger id="sheet" className="w-full">
-              <SelectValue placeholder="Chọn sheet" />
-            </SelectTrigger>
-            <SelectContent>
-              {sheets.map((sheet) => (
-                <SelectItem key={sheet} value={sheet}>
-                  {sheet}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Môn học:</Label>
+          <div className="border rounded-md p-2">
+            <Accordion 
+              type="single" 
+              collapsible 
+              className="w-full"
+              value={openAccordion}
+              onValueChange={(value) => {
+                setOpenAccordion(value || "")
+                if (value) {
+                  setSelectedSubject(value)
+                  const levels = getLevelsForSubject(value)
+                  if (levels.length > 0 && !levels.includes(selectedLevel)) {
+                    setSelectedLevel(levels[0])
+                  }
+                }
+              }}
+            >
+              {subjects.map((subject) => {
+                const levels = getLevelsForSubject(subject)
+                const isSelected = selectedSubject === subject
+                const isOpen = openAccordion === subject
+                
+                return (
+                  <AccordionItem 
+                    key={subject} 
+                    value={subject} 
+                    className="border-none"
+                  >
+                    <div
+                      onMouseEnter={() => {
+                        if (!isOpen) {
+                          setOpenAccordion(subject)
+                          setSelectedSubject(subject)
+                          const levels = getLevelsForSubject(subject)
+                          if (levels.length > 0 && !levels.includes(selectedLevel)) {
+                            setSelectedLevel(levels[0])
+                          }
+                        }
+                      }}
+                    >
+                      <AccordionTrigger className="py-2 hover:no-underline [&>svg]:hidden">
+                        <div className="flex items-center gap-2 w-full">
+                          <ChevronRight 
+                            className={`h-4 w-4 transition-transform duration-200 ${
+                              isOpen ? 'rotate-90' : ''
+                            }`}
+                          />
+                          <span className={isSelected ? 'font-semibold' : ''}>{subject}</span>
+                          {isSelected && selectedLevel && (
+                            <span className="ml-auto text-sm text-muted-foreground">
+                              → {selectedLevel}
+                            </span>
+                          )}
+                        </div>
+                      </AccordionTrigger>
+                    </div>
+                    <AccordionContent>
+                      <div className="pl-6 space-y-1">
+                        {levels.map((level) => (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedSubject(subject)
+                              setSelectedLevel(level)
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                              selectedSubject === subject && selectedLevel === level
+                                ? 'bg-primary text-primary-foreground font-medium'
+                                : 'hover:bg-accent hover:text-accent-foreground'
+                            }`}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )
+              })}
+            </Accordion>
+          </div>
+          {selectedSubject && selectedLevel && (
+            <div className="text-sm text-muted-foreground mt-2">
+              Level: <span className="font-medium">{selectedLevel}</span>
+            </div>
+          )}
         </div>
 
+        {/* Lesson Number */}
         <div className="space-y-2">
           <Label htmlFor="lessonNumber">Số bài học:</Label>
           <div className="flex items-center gap-2">
@@ -130,15 +292,17 @@ export default function Home() {
               id="lessonNumber"
               type="number"
               min="1"
+              max="14"
               value={lessonNumber}
               onChange={(e) => {
                 const num = parseInt(e.target.value) || 1
-                setLessonNumber(num)
-                if (selectedSheet) {
+                setLessonNumber(Math.max(1, Math.min(14, num)))
+                if (selectedLevel) {
                   setSelectedLesson(`lesson_${num}`)
                 }
               }}
               className="flex-1"
+              disabled={!selectedLevel}
             />
             <div className="flex flex-col">
               <Button
@@ -147,6 +311,7 @@ export default function Home() {
                 size="icon"
                 className="h-4 w-8 rounded-b-none"
                 onClick={() => handleLessonNumberChange(1)}
+                disabled={!selectedLevel}
               >
                 <ChevronUp className="h-3 w-3" />
               </Button>
@@ -156,6 +321,7 @@ export default function Home() {
                 size="icon"
                 className="h-4 w-8 rounded-t-none border-t-0"
                 onClick={() => handleLessonNumberChange(-1)}
+                disabled={!selectedLevel}
               >
                 <ChevronDown className="h-3 w-3" />
             </Button>
