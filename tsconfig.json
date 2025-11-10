@@ -27,6 +27,6 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["src", "app", "lib", "components"],
+  "include": ["app", "lib", "components"],
   "references": [{ "path": "./tsconfig.app.json" }]
 }
