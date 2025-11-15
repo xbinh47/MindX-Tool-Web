@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Moon, Sun, ChevronDown, ChevronRight, Trash2, BookOpen, Edit3, Plus, Pencil, GripVertical } from "lucide-react"
 import { useTheme } from "next-themes"
+import { SubjectLevelSelector } from "@/components/ui/subject-level-selector"
 
 interface LessonData {
   lesson_content: string
@@ -33,8 +34,6 @@ export default function AdminPage() {
   const [selectedSubject, setSelectedSubject] = useState<string>("")
   const [selectedLevel, setSelectedLevel] = useState<string>("")
   const [selectedLesson, setSelectedLesson] = useState<string>("")
-  const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState<boolean>(false)
-  const [hoveredSubject, setHoveredSubject] = useState<string>("")
   const [lessonNumber, setLessonNumber] = useState<number>(1)
   const [formData, setFormData] = useState<LessonData>({
     lesson_content: "",
@@ -222,6 +221,21 @@ export default function AdminPage() {
 
   const handleFieldChange = (field: keyof LessonData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSubjectChange = (subject: string) => {
+    setSelectedSubject(subject)
+    const levels = getLevelsForSubject(subject)
+    if (levels.length > 0) {
+      setSelectedLevel(levels[0])
+    } else {
+      setSelectedLevel("")
+    }
+  }
+
+  const handleLevelChange = (subject: string, level: string) => {
+    setSelectedSubject(subject)
+    setSelectedLevel(level)
   }
 
   const handleSave = async () => {
@@ -635,14 +649,14 @@ export default function AdminPage() {
 
   // Admin Dashboard
   return (
-    <div className="min-h-screen p-6 bg-background">
+    <div className="min-h-screen p-6 bg-background relative pb-20">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div>
+        <div className="flex-1"></div>
+        <div className="flex-1 text-center">
           <h1 className="text-3xl font-bold">Quản Trị Hệ Thống</h1>
-          <p className="text-muted-foreground mt-1">Chỉnh sửa dữ liệu bài học</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex-1 flex justify-end gap-4">
           <Button
             variant="ghost"
             size="icon"
@@ -698,139 +712,16 @@ export default function AdminPage() {
                 <CardTitle>Chọn Sheet và Bài Học</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2 relative">
-                  <Label htmlFor="subject">Môn học:</Label>
-                  <button
-                    type="button"
-                    onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)}
-                    className="w-full text-left px-4 py-3 rounded-md text-sm border bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200 flex items-center justify-between"
-                  >
-                    <span>
-                      {selectedSubject
-                        ? getSubjectName(selectedSubject)
-                        : "Chọn môn học"}
-                    </span>
-                    <ChevronRight
-                      className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
-                        isSubjectDropdownOpen ? 'rotate-90' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {/* Subject Dropdown Menu */}
-                  {isSubjectDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-md divide-y bg-background shadow-lg z-50 max-h-[calc(100vh-200px)] overflow-y-auto">
-                      {subjects.map((subject) => {
-                        const isSelected = selectedSubject === subject
-                        const isHovered = hoveredSubject === subject
-                        const subjectName = getSubjectName(subject)
-                        const levels = getLevelsForSubject(subject)
-                        const hasLevels = levels.length > 0
-
-                        return (
-                          <div
-                            key={subject}
-                            className="relative group"
-                            onMouseEnter={() => hasLevels && setHoveredSubject(subject)}
-                            onMouseLeave={() => setHoveredSubject("")}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSubject(subject)
-                                if (hasLevels && !levels.includes(selectedLevel)) {
-                                  setSelectedLevel(levels[0])
-                                }
-                                setIsSubjectDropdownOpen(false)
-                              }}
-                              className={`w-full text-left px-4 py-3 rounded-md text-sm transition-all duration-200 flex items-center justify-between ${
-                                isSelected
-                                  ? 'bg-primary text-primary-foreground font-medium'
-                                  : 'hover:bg-accent hover:text-accent-foreground'
-                              }`}
-                            >
-                              <span>{subjectName}</span>
-                              {hasLevels && (
-                                <ChevronRight
-                                  className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
-                                    isHovered ? 'translate-x-1' : ''
-                                  }`}
-                                />
-                              )}
-                            </button>
-
-                            {/* Submenu: Level List - hiện khi hover vào subject */}
-                            {isHovered && hasLevels && (
-                              <div
-                                className="fixed min-w-[200px] max-w-[300px] border rounded-md bg-background shadow-lg"
-                                style={{
-                                  maxHeight: 'calc(100vh - 200px)',
-                                  overflowY: 'auto',
-                                  zIndex: 100
-                                }}
-                                onMouseEnter={() => setHoveredSubject(subject)}
-                                onMouseLeave={() => setHoveredSubject("")}
-                                ref={(el) => {
-                                  if (el && el.parentElement) {
-                                    setTimeout(() => {
-                                      const buttonRect = el.parentElement?.getBoundingClientRect()
-                                      if (!buttonRect) return
-
-                                      const viewportWidth = window.innerWidth
-                                      const viewportHeight = window.innerHeight
-
-                                      let left = buttonRect.right + 4
-                                      let top = buttonRect.top
-
-                                      if (left + 300 > viewportWidth - 20) {
-                                        left = buttonRect.left - 300 - 4
-                                      }
-
-                                      if (top + el.offsetHeight > viewportHeight - 20) {
-                                        top = viewportHeight - el.offsetHeight - 20
-                                      }
-
-                                      el.style.left = `${left}px`
-                                      el.style.top = `${top}px`
-                                    }, 0)
-                                  }
-                                }}
-                              >
-                                <div className="text-xs font-medium text-muted-foreground px-4 py-2 border-b bg-muted/50 sticky top-0">
-                                  Level
-                                </div>
-                                <div className="divide-y">
-                                  {levels.map((level) => {
-                                    const isLevelSelected = selectedLevel === level && selectedSubject === subject
-                                    return (
-                                      <button
-                                        key={level}
-                                        type="button"
-                                        onClick={() => {
-                                          setSelectedSubject(subject)
-                                          setSelectedLevel(level)
-                                          setIsSubjectDropdownOpen(false)
-                                          setHoveredSubject("")
-                                        }}
-                                        className={`w-full text-left px-4 py-3 text-sm transition-all duration-200 ${
-                                          isLevelSelected
-                                            ? 'bg-primary text-primary-foreground font-medium'
-                                            : 'hover:bg-accent hover:text-accent-foreground'
-                                        }`}
-                                      >
-                                        {level}
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
+                <SubjectLevelSelector
+                  subjects={subjects}
+                  selectedSubject={selectedSubject}
+                  selectedLevel={selectedLevel}
+                  onSubjectChange={handleSubjectChange}
+                  onLevelChange={handleLevelChange}
+                  getSubjectName={getSubjectName}
+                  getLevelsForSubject={getLevelsForSubject}
+                  label="Môn học:"
+                />
 
                 {selectedSubject && selectedLevel && (
                   <div className="space-y-3">

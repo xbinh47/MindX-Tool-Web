@@ -150,7 +150,7 @@ export function CKEditor({ value, onChange, placeholder, disabled, className }: 
               <div className="space-y-2">
                 <div className="text-sm font-medium mb-2">Màu chữ</div>
                 <div className="grid grid-cols-8 gap-2">
-                  {['#000000', '#ffffff', '#ef4444', '#f59e0b', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#6366f1'].map((color) => (
+                  {['#000000', '#ffffff', 'rgb(219, 52, 46)', 'rgb(242, 120, 6)', 'rgb(247, 181, 3)', 'rgb(21, 168, 95)'].map((color) => (
                     <button
                       key={color}
                       type="button"

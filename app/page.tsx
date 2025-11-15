@@ -8,8 +8,9 @@ import { CKEditor } from "@/components/ui/ckeditor"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Moon, Sun, ChevronRight } from "lucide-react"
+import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
+import { SubjectLevelSelector } from "@/components/ui/subject-level-selector"
 
 interface LessonData {
   lesson_content: string
@@ -63,8 +64,6 @@ export default function Home() {
   }
   const [selectedSubject, setSelectedSubject] = useState<string>("")
   const [selectedLevel, setSelectedLevel] = useState<string>("")
-  const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState<boolean>(false)
-  const [hoveredSubject, setHoveredSubject] = useState<string>("")
   const [selectedLesson, setSelectedLesson] = useState<string>("")
   const [lessonNumber, setLessonNumber] = useState<number>(1)
   const [formData, setFormData] = useState<LessonData>({
@@ -218,6 +217,21 @@ export default function Home() {
       setSelectedLevel("")
     }
   }, [selectedSubject, data])
+
+  const handleSubjectChange = (subject: string) => {
+    setSelectedSubject(subject)
+    const levels = getLevelsForSubject(subject)
+    if (levels.length > 0) {
+      setSelectedLevel(levels[0])
+    } else {
+      setSelectedLevel("")
+    }
+  }
+
+  const handleLevelChange = (subject: string, level: string) => {
+    setSelectedSubject(subject)
+    setSelectedLevel(level)
+  }
 
   // Khi chọn level mới, tự động chọn lesson đầu tiên
   useEffect(() => {
@@ -429,157 +443,15 @@ export default function Home() {
           </div>
 
           {/* Subject and Level Selection */}
-            <div className="space-y-2">
-            <Label>Môn học và Level:</Label>
-            <div className="relative">
-              {/* Subject Selector Button */}
-              <button
-                type="button"
-                ref={(el) => {
-                  if (el) {
-                    // Lưu reference của main button để dùng cho submenu positioning
-                    (window as any).__mainSubjectButtonRef = el
-                  }
-                }}
-                onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)}
-                className="w-full text-left px-4 py-3 rounded-md text-sm border bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200 flex items-center justify-between"
-              >
-                <span>
-                  {selectedSubject 
-                    ? getSubjectName(selectedSubject) 
-                    : "Chọn môn học"}
-                </span>
-                <ChevronRight 
-                  className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
-                    isSubjectDropdownOpen ? 'rotate-90' : ''
-                  }`}
-                />
-              </button>
-
-              {/* Subject Dropdown Menu */}
-              {isSubjectDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 border rounded-md divide-y bg-background shadow-lg z-50 max-h-[calc(100vh-200px)] overflow-y-auto">
-                  {subjects.map((subject) => {
-                    const isSelected = selectedSubject === subject
-                    const isHovered = hoveredSubject === subject
-                    const subjectName = getSubjectName(subject)
-                    const levels = getLevelsForSubject(subject)
-                    const hasLevels = levels.length > 0
-                    
-                    return (
-                      <div
-                        key={subject}
-                        className="relative group"
-                        onMouseEnter={() => hasLevels && setHoveredSubject(subject)}
-                        onMouseLeave={() => setHoveredSubject("")}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedSubject(subject)
-                            if (hasLevels && !levels.includes(selectedLevel)) {
-                              setSelectedLevel(levels[0])
-                            }
-                            setIsSubjectDropdownOpen(false)
-                          }}
-                          className={`w-full text-left px-4 py-3 rounded-md text-sm transition-all duration-200 flex items-center justify-between ${
-                            isSelected
-                              ? 'bg-primary text-primary-foreground font-medium'
-                              : 'hover:bg-accent hover:text-accent-foreground'
-                          }`}
-                        >
-                          <span>{subjectName}</span>
-                          {hasLevels && (
-                            <ChevronRight 
-                              className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
-                                isHovered ? 'translate-x-1' : ''
-                              }`}
-                            />
-                          )}
-                        </button>
-                        
-                        {/* Submenu: Level List - hiện khi hover vào subject */}
-                        {isHovered && hasLevels && (
-                          <div 
-                            className="fixed min-w-[200px] max-w-[300px] border rounded-md bg-background shadow-lg"
-                            style={{
-                              maxHeight: 'calc(100vh - 200px)',
-                              overflowY: 'auto',
-                              zIndex: 100
-                            }}
-                            onMouseEnter={() => setHoveredSubject(subject)}
-                            onMouseLeave={() => setHoveredSubject("")}
-                            ref={(el) => {
-                              if (el && el.parentElement) {
-                                // Điều chỉnh vị trí sau khi render xong
-                                setTimeout(() => {
-                                  // Lấy vị trí của subject button (item đang được hover)
-                                  const subjectButton = el.parentElement?.querySelector('button') as HTMLElement
-                                  if (!subjectButton) return
-                                  
-                                  const subjectButtonRect = subjectButton.getBoundingClientRect()
-                                  const viewportWidth = window.innerWidth
-                                  const viewportHeight = window.innerHeight
-                                  
-                                  // Tính toán vị trí: bên phải của subject button
-                                  let left = subjectButtonRect.right + 4
-                                  // Top của submenu = top của subject button (để option đầu tiên ngang với subject item)
-                                  // Trừ đi chiều cao của header "Level" để option đầu tiên ngang với subject item
-                                  const headerHeight = el.querySelector('.text-xs.font-medium')?.getBoundingClientRect().height || 0
-                                  let top = subjectButtonRect.top - headerHeight
-                                  
-                                  // Nếu tràn ra ngoài màn hình bên phải, hiện bên trái
-                                  if (left + 300 > viewportWidth - 20) {
-                                    left = subjectButtonRect.left - 300 - 4
-                                  }
-                                  
-                                  // Điều chỉnh vị trí dọc nếu tràn ra ngoài màn hình
-                                  if (top + el.offsetHeight > viewportHeight - 20) {
-                                    top = viewportHeight - el.offsetHeight - 20
-                                  }
-                                  
-                                  el.style.left = `${left}px`
-                                  el.style.top = `${top}px`
-                                }, 0)
-                              }
-                            }}
-                          >
-                            <div className="text-xs font-medium text-muted-foreground px-4 py-2 border-b bg-muted/50 sticky top-0">
-                              Level
-                            </div>
-                            <div className="divide-y">
-                              {levels.map((level) => {
-                                const isLevelSelected = selectedLevel === level && selectedSubject === subject
-                                return (
-                                  <button
-                                    key={level}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedSubject(subject)
-                                      setSelectedLevel(level)
-                                      setIsSubjectDropdownOpen(false)
-                                      setHoveredSubject("")
-                                    }}
-                                    className={`w-full text-left px-4 py-3 text-sm transition-all duration-200 ${
-                                      isLevelSelected
-                                        ? 'bg-primary text-primary-foreground font-medium'
-                                        : 'hover:bg-accent hover:text-accent-foreground'
-                                    }`}
-                                  >
-                                    {level}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-              </div>
+          <SubjectLevelSelector
+            subjects={subjects}
+            selectedSubject={selectedSubject}
+            selectedLevel={selectedLevel}
+            onSubjectChange={handleSubjectChange}
+            onLevelChange={handleLevelChange}
+            getSubjectName={getSubjectName}
+            getLevelsForSubject={getLevelsForSubject}
+          />
 
             <div className="space-y-2">
               <Label htmlFor="lessonNumber">Số bài học:</Label>
