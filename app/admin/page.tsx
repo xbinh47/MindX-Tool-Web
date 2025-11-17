@@ -649,14 +649,15 @@ export default function AdminPage() {
 
   // Admin Dashboard
   return (
-    <div className="min-h-screen p-6 bg-background relative pb-20">
+    <div className="min-h-screen p-3 sm:p-4 md:p-6 bg-background relative pb-20">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex-1"></div>
-        <div className="flex-1 text-center">
-          <h1 className="text-3xl font-bold">Quản Trị Hệ Thống</h1>
+      <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
+        <div className="flex-1 hidden sm:block"></div>
+        <div className="flex-1 text-center min-w-0">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Quản Trị Hệ Thống</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 hidden sm:block">Chỉnh sửa dữ liệu bài học</p>
         </div>
-        <div className="flex-1 flex justify-end gap-4">
+        <div className="flex-1 flex justify-end gap-2 sm:gap-4">
           <Button
             variant="ghost"
             size="icon"
@@ -665,7 +666,7 @@ export default function AdminPage() {
               e.stopPropagation()
               toggleTheme()
             }}
-            className="rounded-full cursor-pointer"
+            className="rounded-full cursor-pointer shrink-0"
             type="button"
             aria-label="Toggle theme"
           >
@@ -678,12 +679,15 @@ export default function AdminPage() {
           </Button>
           <Button
             variant="outline"
+            size="sm"
+            className="text-xs sm:text-sm shrink-0"
             onClick={() => {
               sessionStorage.removeItem("admin_authenticated")
               setIsAuthenticated(false)
             }}
           >
-            Đăng xuất
+            <span className="hidden sm:inline">Đăng xuất</span>
+            <span className="sm:hidden">Thoát</span>
           </Button>
         </div>
       </div>
@@ -691,22 +695,24 @@ export default function AdminPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="edit" className="flex items-center gap-2">
-              <Edit3 className="h-4 w-4" />
-              Chỉnh sửa bài học
+          <TabsList className="mb-4 sm:mb-6 w-full sm:w-auto">
+            <TabsTrigger value="edit" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm flex-1 sm:flex-initial">
+              <Edit3 className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Chỉnh sửa bài học</span>
+              <span className="sm:hidden">Sửa</span>
             </TabsTrigger>
-            <TabsTrigger value="manage" className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              Quản lý khóa học
+            <TabsTrigger value="manage" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm flex-1 sm:flex-initial">
+              <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Quản lý khóa học</span>
+              <span className="sm:hidden">Quản lý</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Tab: Chỉnh sửa bài học */}
           <TabsContent value="edit" className="mt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Left Column - Selection and Student Book */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Chọn Sheet và Bài Học</CardTitle>
@@ -780,8 +786,8 @@ export default function AdminPage() {
                     </div>
 
                     {/* Lessons list with better styling */}
-                    <div className="border rounded-lg p-3 bg-muted/30 max-h-64 overflow-y-auto">
-                      <div className="grid grid-cols-2 gap-2">
+                    <div className="border rounded-lg p-2 sm:p-3 bg-muted/30 max-h-64 overflow-y-auto">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-2">
                         {getLessonsForLevel(selectedSubject, selectedLevel).map((lessonKey) => {
                           const num = parseInt(lessonKey.replace('lesson_', '')) || 0
                           const isSelected = selectedLessons.includes(lessonKey)
@@ -866,7 +872,7 @@ export default function AdminPage() {
                 <CardTitle>Danh sách buổi học</CardTitle>
                 <CardDescription>Click vào buổi để mở rộng và chỉnh sửa</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
+              <CardContent className="space-y-2 max-h-[400px] sm:max-h-[600px] overflow-y-auto">
                 {getLessonsForLevel(selectedSubject, selectedLevel)
                   .filter(lessonKey => selectedLessons.includes(lessonKey))
                   .map((lessonKey) => {
@@ -1049,19 +1055,20 @@ export default function AdminPage() {
           <TabsContent value="manage" className="mt-0">
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                   <div>
-                <CardTitle className="flex items-center gap-2 text-lg">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <BookOpen className="h-4 w-4" />
                   Quản lý khóa học
                 </CardTitle>
-                    <CardDescription className="text-sm">Xem, thêm, chỉnh sửa và xóa các khóa học</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Xem, thêm, chỉnh sửa và xóa các khóa học</CardDescription>
                   </div>
                   <Dialog open={isCreateSubjectDialogOpen} onOpenChange={setIsCreateSubjectDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button size="sm" className="flex items-center gap-2">
-                        <Plus className="h-4 w-4" />
-                        Thêm khóa học
+                      <Button size="sm" className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto text-xs sm:text-sm">
+                        <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">Thêm khóa học</span>
+                        <span className="sm:hidden">Thêm</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent>

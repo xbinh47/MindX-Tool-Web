@@ -393,12 +393,12 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen p-6 bg-background relative pb-20">
+    <div className="min-h-screen p-3 sm:p-4 md:p-6 bg-background relative pb-20">
       {/* Header with Theme Toggle */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex-1"></div>
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div className="flex-1 hidden sm:block"></div>
         <div className="flex-1 text-center">
-          <h1 className="text-3xl font-bold">Quản Lý Bài Học</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Quản Lý Bài Học</h1>
         </div>
         <div className="flex-1 flex justify-end">
           <Button
@@ -424,9 +424,9 @@ export default function Home() {
       </div>
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 max-w-7xl mx-auto">
         {/* Left Column - Input Form */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Greeting Editor */}
           <div className="space-y-2">
             <Label htmlFor="greeting">Lời chào:</Label>
@@ -727,9 +727,9 @@ export default function Home() {
 
         {/* Right Column - Result Display */}
         <div className="space-y-4">
-          <div className="sticky top-6">
+          <div className="sticky top-4 sm:top-6">
             <div className="space-y-2">
-              <Label className="text-lg font-semibold">Kết quả (có thể copy với format):</Label>
+              <Label className="text-base sm:text-lg font-semibold">Kết quả (có thể copy với format):</Label>
               <div className="space-y-2">
                 <CKEditor
                   value={result 
@@ -752,10 +752,11 @@ export default function Home() {
                   placeholder={result ? "Kết quả sẽ hiển thị ở đây..." : "Vui lòng chọn Sheet và Bài học trước khi tạo nội dung."}
                 />
                 {result && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="sm"
+                      className="text-xs sm:text-sm"
                       onClick={() => {
                         const htmlContent = result
                           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -774,6 +775,7 @@ export default function Home() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="text-xs sm:text-sm"
                       onClick={async () => {
                         const htmlContent = result
                           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -797,7 +799,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="fixed bottom-4 right-4 text-sm text-muted-foreground">
+      <div className="fixed bottom-2 right-2 sm:bottom-4 sm:right-4 text-xs sm:text-sm text-muted-foreground">
         © Xuân Bình
       </div>
     </div>
