@@ -8,9 +8,10 @@ import { CKEditor } from "@/components/ui/ckeditor"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Moon, Sun } from "lucide-react"
+import { Moon, Sun, Copy } from "lucide-react"
 import { useTheme } from "next-themes"
 import { SubjectLevelSelector } from "@/components/ui/subject-level-selector"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface LessonData {
   lesson_content: string
@@ -730,7 +731,34 @@ export default function Home() {
           <div className="sticky top-4 sm:top-6">
             <div className="space-y-2">
               <Label className="text-base sm:text-lg font-semibold">Kết quả (có thể copy với format):</Label>
-              <div className="space-y-2">
+              <div className="space-y-2 relative">
+                {result && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="absolute top-2 right-2 z-10 h-8 w-8 rounded-md hover:bg-accent flex items-center justify-center transition-colors"
+                        onClick={async () => {
+                          const htmlContent = result
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\n/g, '<br>')
+                          await navigator.clipboard.write([
+                            new ClipboardItem({
+                              'text/html': new Blob([htmlContent], { type: 'text/html' }),
+                              'text/plain': new Blob([result], { type: 'text/plain' })
+                            })
+                          ])
+                          alert('Đã copy vào clipboard với format! Paste vào Word hoặc email để thấy chữ in đậm.')
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Copy với format</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
                 <CKEditor
                   value={result 
                     ? result
@@ -752,30 +780,10 @@ export default function Home() {
                   placeholder={result ? "Kết quả sẽ hiển thị ở đây..." : "Vui lòng chọn Sheet và Bài học trước khi tạo nội dung."}
                 />
                 {result && (
-                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-xs sm:text-sm"
-                      onClick={() => {
-                        const htmlContent = result
-                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/\n/g, '<br>')
-                        const blob = new Blob([htmlContent], { type: 'text/html' })
-                        const url = URL.createObjectURL(blob)
-                        const a = document.createElement('a')
-                        a.href = url
-                        a.download = 'noi-dung-bai-hoc.html'
-                        a.click()
-                        URL.revokeObjectURL(url)
-                      }}
-                    >
-                      Copy HTML
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs sm:text-sm"
+                    className="w-full text-xs sm:text-sm"
                       onClick={async () => {
                         const htmlContent = result
                           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -791,7 +799,6 @@ export default function Home() {
                     >
                       Copy với format
                     </Button>
-                  </div>
                 )}
               </div>
             </div>

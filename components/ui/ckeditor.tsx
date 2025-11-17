@@ -20,14 +20,35 @@ import {
   AlignRight,
   List,
   Link as LinkIcon,
-  Palette,
-  Highlighter,
+  PaintBucket,
 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "./dropdown-menu"
+
+// Helper function to convert RGB to hex
+function rgbToHex(rgb: string): string {
+  if (rgb.startsWith('#')) return rgb
+  const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
+  if (!match) return '#000000'
+  const r = parseInt(match[1])
+  const g = parseInt(match[2])
+  const b = parseInt(match[3])
+  return '#' + [r, g, b].map(x => {
+    const hex = x.toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }).join('')
+}
+
+// Helper function to convert any color format to hex
+function colorToHex(color: string | undefined): string {
+  if (!color) return '#000000'
+  if (color.startsWith('#')) return color
+  if (color.startsWith('rgb')) return rgbToHex(color)
+  return '#000000'
+}
 
 interface CKEditorProps {
   value: string
@@ -142,15 +163,30 @@ export function CKEditor({ value, onChange, placeholder, disabled, className }: 
                 size="sm"
                 disabled={disabled}
                 title="Màu chữ"
+                className="relative"
               >
-                <Palette className="h-4 w-4" />
+                {/* Custom icon: A with underline */}
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {/* Letter A */}
+                  <path d="M12 4 L4 20 M12 4 L20 20 M8 14 L16 14" />
+                  {/* Underline */}
+                  <line x1="6" y1="22" x2="18" y2="22" strokeWidth="2" />
+                </svg>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64 p-3">
               <div className="space-y-2">
                 <div className="text-sm font-medium mb-2">Màu chữ</div>
                 <div className="grid grid-cols-8 gap-2">
-                  {['#000000', '#ffffff', 'rgb(219, 52, 46)', 'rgb(242, 120, 6)', 'rgb(247, 181, 3)', 'rgb(21, 168, 95)'].map((color) => (
+                  {['#000000', '#ffffff', '#db342e', '#f27806', '#f7b503', '#15a85f'].map((color) => (
                     <button
                       key={color}
                       type="button"
@@ -169,7 +205,7 @@ export function CKEditor({ value, onChange, placeholder, disabled, className }: 
                     onChange={(e) => {
                       editor.chain().focus().setColor(e.target.value).run()
                     }}
-                    value={editor.getAttributes('textStyle').color || '#000000'}
+                    value={colorToHex(editor.getAttributes('textStyle').color)}
                     className="h-8 w-full cursor-pointer rounded border"
                     disabled={disabled}
                   />
@@ -196,7 +232,7 @@ export function CKEditor({ value, onChange, placeholder, disabled, className }: 
                 disabled={disabled}
                 title="Màu nền"
               >
-                <Highlighter className="h-4 w-4" />
+                <PaintBucket className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64 p-3">
@@ -222,7 +258,10 @@ export function CKEditor({ value, onChange, placeholder, disabled, className }: 
                     onChange={(e) => {
                       editor.chain().focus().toggleHighlight({ color: e.target.value }).run()
                     }}
-                    value="#ffff00"
+                    value={(() => {
+                      const marks = editor.getAttributes('highlight')
+                      return marks?.color ? colorToHex(marks.color) : '#ffff00'
+                    })()}
                     className="h-8 w-full cursor-pointer rounded border"
                     disabled={disabled}
                   />
