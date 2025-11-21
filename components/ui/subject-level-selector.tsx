@@ -76,7 +76,9 @@ export function SubjectLevelSelector({
         >
           <span>
             {selectedSubject 
-              ? getSubjectName(selectedSubject) 
+              ? selectedLevel
+                ? `${getSubjectName(selectedSubject)} - ${selectedLevel}`
+                : getSubjectName(selectedSubject)
               : "Chọn môn học"}
           </span>
           <ChevronRight 
